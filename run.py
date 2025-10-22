@@ -185,7 +185,7 @@ def read_input() -> State:
         Idea:
             Парсинг ввода.
     :return:
-        State: начальное состояние в теле объекта State
+        State: начальное состояние в теле объекта State.
     """
     lines = [line.rstrip('\n') for line in sys.stdin if line.strip()]
     hall = ''.join(lines[1][1:12])
