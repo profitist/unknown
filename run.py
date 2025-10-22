@@ -1,6 +1,6 @@
 import heapq
 import sys
-from typing import Tuple, Generator
+from typing import Tuple, Generator, Self
 
 
 class State:
@@ -16,7 +16,7 @@ class State:
     # Разрешенные позиции в коридоре
     ALLOWED_HALL_POSITIONS = [0, 1, 3, 5, 7, 9, 10]
 
-    def __init__(self, hall_and_rooms: str, depth: int):
+    def __init__(self, hall_and_rooms: str, depth: int) -> None:
         """
             Idea:
                 Инициализация объекта состояния лабиринта
@@ -150,7 +150,7 @@ class State:
                 return False
         return True
 
-    def move(self, first_pos: int, second_pos: int):
+    def move(self, first_pos: int, second_pos: int) -> Self:
         """
             Idea:
                 Передвижение буквы в нужное место
@@ -176,7 +176,7 @@ class State:
             if self.code[i] == '.':
                 return i
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.code
 
 
