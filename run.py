@@ -183,7 +183,7 @@ class State:
 def read_input() -> State:
     """
         Idea:
-            Парсинг ввода
+            Парсинг ввода.
     :return:
         State: начальное состояние в теле объекта State
     """
