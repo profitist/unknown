@@ -1,5 +1,6 @@
 import heapq
 import sys
+from functools import lru_cache
 from typing import Tuple, Generator, Self
 
 
@@ -44,6 +45,20 @@ class State:
         """Генерирует соседние состояния"""
         yield from self.find_paths_room_entry()
         yield from self.find_paths_room_exit()
+
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def cached_neighbours(state_code: str, depth: int) \
+            -> Tuple[Tuple['State', int], ...]:
+        """
+            Idea:
+                Кэшированный поиск соседей
+        :param state_code: код состояния из которого ищем соседей
+        :param depth: глубина лабиринта
+        :return:
+        """
+        state = State(state_code, depth)
+        return tuple((s, cost) for s, cost in state.find_neighbours())
 
     def find_paths_room_entry(self) -> \
             Generator[Tuple["State", int], None, None]:
@@ -96,7 +111,7 @@ class State:
                 # под ним есть другие некорректные элементы, то достаем его
                 are_any_incorrect_under = any(
                     self.code[i + room_code_idx] != room_owner
-                    for i in range(self.depth)
+                    for i in range(depth_in_room, self.depth)
                 )
 
                 if (element != '.' and
@@ -219,7 +234,8 @@ def solve(initial: State) -> int:
         cost, _, state = heapq.heappop(heap)
         if state == goal_state:
             return cost
-        for new_state, move_cost in state.find_neighbours():
+        for new_state, move_cost in State.cached_neighbours(state.code,
+                                                            state.depth):
             new_cost = cost + move_cost
 
             if new_state not in seen or new_cost < seen[new_state]:
