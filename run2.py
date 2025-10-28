@@ -3,7 +3,8 @@ from collections import deque
 from typing import List, Dict, Tuple, Optional
 
 
-def bfs(edges: Dict[str, list], start: str) -> Optional[Tuple[str, str]]:
+def bfs_deleted_node(edges: Dict[str, list], start: str) \
+        -> Optional[Tuple[str, str]]:
     """
         Idea:
             Пробегаемся бфсом в поиске шлюза.
@@ -37,7 +38,7 @@ def bfs(edges: Dict[str, list], start: str) -> Optional[Tuple[str, str]]:
     if not founded:
         return None
 
-    founded.sort(key=lambda x: (x[0], x[1]))
+    founded.sort(key=lambda x: f'{x[0]}-{x[1]}')
     return founded[0]
 
 
@@ -52,17 +53,25 @@ def bfs_next_step(edges: Dict[str, List[str]], start: str) -> Optional[str]:
     :param start: стартовая точка
     :return: строка - нода следующего хода вируса
     """
-    q = deque([(node, node) for node in sorted(edges[start])])
+    q = deque([(node, node, 1) for node in sorted(edges[start])])
     visited = {start}
+    min_depth = float('inf')
+    min_gateway = None
+    answer = None
     while q:
-        first_step_node, current_node = q.popleft()
+        first_step_node, current_node, depth = q.popleft()
         if current_node.isupper():
-            return first_step_node
+            if depth < min_depth or (
+                    depth == min_depth and current_node < min_gateway):
+                min_depth = depth
+                min_gateway = current_node
+                answer = first_step_node
+                continue
         if current_node not in visited:
             visited.add(current_node)
             for neighbour in sorted(edges[current_node]):
-                q.append((first_step_node, neighbour))
-    return None
+                q.append((first_step_node, neighbour, depth + 1))
+    return answer
 
 
 def solve(edges: Dict[str, List[str]]) -> List[str]:
@@ -76,7 +85,7 @@ def solve(edges: Dict[str, List[str]]) -> List[str]:
     result = []
     current_pos = 'a'
     while True:
-        founded = bfs(edges, current_pos)  # Нашли удаленный шлюз
+        founded = bfs_deleted_node(edges, current_pos)  # Нашли удаленный шлюз
         if not founded:
             return result
         gateway, from_node = founded
