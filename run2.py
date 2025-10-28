@@ -3,8 +3,8 @@ from collections import deque
 from typing import List, Dict, Tuple, Optional
 
 
-def bfs_deleted_node(edges: Dict[str, list], start: str) \
-        -> Optional[Tuple[str, str]]:
+def bfs(edges: Dict[str, list], start: str) \
+        -> Optional[Tuple[str, ...]]:
     """
         Idea:
             Пробегаемся бфсом в поиске шлюза.
@@ -13,65 +13,42 @@ def bfs_deleted_node(edges: Dict[str, list], start: str) \
     :param edges: Словарь смежности ребер
     :param start: стартовая точка
     :return: кортеж из 3х элементов:
-     (Шлюз, Откуда в этот шлюз попали)
+     (Шлюз, Откуда в этот шлюз попали, первый шаг)
     """
-    q = deque([(start, node, 1) for node in sorted(edges[start])])
+    if start not in edges or not edges[start]:
+        return None
+
+    q = deque([(start, node, 1, node) for node in sorted(edges[start])])
     visited = {start}
     founded = []
     min_depth = None
-
+    founded_gateways = set()
     while q:
-        from_node, current_node, depth = q.popleft()
+        from_node, current_node, depth, first_step = q.popleft()
+
+        # Если уже нашли шлюз на меньшей глубине — дальше нет смысла
+        if min_depth is not None and depth > min_depth:
+            break
+
         if current_node.isupper():
             # Проверки нового шлюза на закрытие
             if min_depth is None:
                 min_depth = depth
-            if depth == min_depth:
-                founded.append((current_node, from_node))
+            if depth == min_depth and current_node not in founded_gateways:
+                founded.append((current_node, from_node, first_step))
+                founded_gateways.add(current_node)
             continue
 
         if current_node not in visited:
             visited.add(current_node)
-            for neighbour in sorted(edges[current_node]):
-                q.append((current_node, neighbour, depth + 1))
+            for neighbour in sorted(edges.get(current_node, [])):
+                q.append((current_node, neighbour, depth + 1, first_step))
 
     if not founded:
         return None
 
-    founded.sort(key=lambda x: f'{x[0]}-{x[1]}')
+    founded.sort(key=lambda x: x[0])
     return founded[0]
-
-
-def bfs_next_step(edges: Dict[str, List[str]], start: str) -> Optional[str]:
-    """
-        Idea:
-            Ищем следующий ход нашего вируса,
-            в зависимости от изменений в лабиринте, и нового расположения шлюзов
-            Запоминаем первый ход, чтобы вернуть его в конце, после того,
-            как нашли шлюз.
-    :param edges: Словарь смежности ребер
-    :param start: стартовая точка
-    :return: строка - нода следующего хода вируса
-    """
-    q = deque([(node, node, 1) for node in sorted(edges[start])])
-    visited = {start}
-    min_depth = float('inf')
-    min_gateway = None
-    answer = None
-    while q:
-        first_step_node, current_node, depth = q.popleft()
-        if current_node.isupper():
-            if depth < min_depth or (
-                    depth == min_depth and current_node < min_gateway):
-                min_depth = depth
-                min_gateway = current_node
-                answer = first_step_node
-                continue
-        if current_node not in visited:
-            visited.add(current_node)
-            for neighbour in sorted(edges[current_node]):
-                q.append((first_step_node, neighbour, depth + 1))
-    return answer
 
 
 def solve(edges: Dict[str, List[str]]) -> List[str]:
@@ -85,20 +62,23 @@ def solve(edges: Dict[str, List[str]]) -> List[str]:
     result = []
     current_pos = 'a'
     while True:
-        founded = bfs_deleted_node(edges, current_pos)  # Нашли удаленный шлюз
+        founded = bfs(edges, current_pos)
         if not founded:
             return result
-        gateway, from_node = founded
-        result.append(f'{gateway}-{from_node}')  # Добавили удаленный шлюз
-
-        # Почистили лабиринт
-        edges[gateway].remove(from_node)
-        edges[from_node].remove(gateway)
-
-        # Поменяли позицию вируса
-        current_pos = bfs_next_step(edges, current_pos)
-        if not current_pos:
+        gateway, from_node, first_step = founded
+        result.append(f'{gateway}-{from_node}')
+        break_halls(edges, gateway, from_node)
+        new_virus_pos = bfs(edges, current_pos)
+        if not new_virus_pos or new_virus_pos[2] not in edges:
             return result
+        current_pos = new_virus_pos[2]
+
+
+def break_halls(edges: Dict[str, List[str]], gateway: str, node: str) -> None:
+    if node in edges.get(gateway, []):
+        edges[gateway].remove(node)
+    if gateway in edges.get(node, []):
+        edges[node].remove(gateway)
 
 
 def main():
@@ -110,6 +90,7 @@ def main():
             if sep:
                 edges.setdefault(node1, []).append(node2)
                 edges.setdefault(node2, []).append(node1)
+
     result = solve(edges)
     for edge in result:
         print(edge)
