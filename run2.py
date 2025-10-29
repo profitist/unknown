@@ -1,27 +1,55 @@
 import sys
 from collections import deque
-from typing import List, Dict, Tuple, Set
+from typing import List, Dict, Set
 
 
-def find_shortest_path(edges: Dict[str, Set[str]], start: str) -> int | float:
+def is_virus_closed(edges: Dict[str, set], start: str) -> bool:
     """
         Idea:
-            Поиск минимальной длины пути до шлюза
+            Проверка на то, что вирус не может дойти до шлюза
     :param edges: Словарь смежности вершин
     :param start: Стартовая точка
-    :return: depth длина пути
+    :return: bool да если не изолирован / нет иначе
     """
-    q = deque([(start, 0)])
+    q = deque([start])
     visited = {start}
     while q:
-        node, depth = q.popleft()
+        node = q.popleft()
         if node.isupper():
-            return depth
-        for neighbor in edges[node]:
-            if neighbor not in visited:
-                visited.add(neighbor)
-                q.append((neighbor, depth + 1))
-    return float('inf')
+            return False
+        for neigh in edges[node]:
+            if neigh not in visited:
+                visited.add(neigh)
+                q.append(neigh)
+    return True
+
+
+def can_isolate(edges: Dict[str, set], virus_pos: str, ans: List[str]) -> bool:
+    """
+        Idea:
+            Проверка на то, что мы можем закрыть шлюз и затем найти
+            решение для полученного графа
+    :param edges:
+    :param virus_pos:
+    :param ans: Собираемый ответ на задачу
+    :return: True если мы можем закрыть шлюз и затем найти решение
+    для полученного графа
+    """
+    if is_virus_closed(edges, virus_pos):
+        return True
+    if virus_pos.isupper():
+        return False
+    gateways = sorted([node for node in edges if node.isupper()])
+    for gateway in gateways:
+        for neigh in sorted(edges[gateway]):
+            break_halls(edges, gateway, neigh)
+            next_pos = find_virus_next_step(edges, virus_pos)
+            if not next_pos or can_isolate(edges, next_pos, ans):
+                ans.append(f'{gateway}-{neigh}')
+                rebuild_edges(edges, gateway, neigh)
+                return True
+            rebuild_edges(edges, gateway, neigh)
+    return False
 
 
 def find_virus_next_step(edges: Dict[str, Set[str]], start: str):
@@ -62,59 +90,17 @@ def find_virus_next_step(edges: Dict[str, Set[str]], start: str):
     return result_first_step
 
 
-def find_edge_to_break(edges: Dict[str, Set[str]], start: str) \
-        -> Tuple[str, str]:
-    """
-        Idea:
-            Поиск лексикографически меньшего шлюза для разрыва,
-            чтобы у нас оставалась возможность закрыть вирус внутри
-    :param edges: Словарь смежности вершин
-    :param start: Стартовая точка
-    :return: Пара (шлюз, нода откуда пришли в шлюз)
-    """
-    gateways = [n for n in edges if n.isupper()]
-    current_distance = find_shortest_path(edges, start)
-    candidates = []
-
-    for g in sorted(gateways):
-        for neighbor in sorted(edges[g]):
-            break_halls(edges, g, neighbor)
-            new_distance = find_shortest_path(edges, start)
-            if new_distance >= current_distance:
-                candidates.append((g, neighbor))
-            rebuild_edges(edges, g, neighbor)
-    if not candidates:
-        return None
-    candidates.sort()
-    return candidates[0]
-
-
 def solve(edges: Dict[str, Set[str]]) -> List[str]:
     """
         Idea:
-            Симуляция движения вируса и удаления шлюзов.
-            Как только убрали все опасные шлюзы - return
+            Рекурсивный спуск с перебором вариантов закрытия шлюзов
     :param edges: Словарь смежности вершин
     :return: Последовательность закрывания шлюзов - ответ на задачу
     """
     result = []
     current_pos = 'a'
-
-    while True:
-        candidate = find_edge_to_break(edges, current_pos)
-        if not candidate:
-            break
-
-        gateway, node = candidate
-        result.append(f"{gateway}-{node}")
-        break_halls(edges, gateway, node)
-
-        next_pos = find_virus_next_step(edges, current_pos)
-        if not next_pos:
-            break
-        current_pos = next_pos
-
-    return result
+    can_isolate(edges, current_pos, result)
+    return result[::-1]
 
 
 def break_halls(edges: Dict[str, Set[str]], gateway: str, node: str) -> None:
@@ -133,6 +119,14 @@ def break_halls(edges: Dict[str, Set[str]], gateway: str, node: str) -> None:
 
 
 def rebuild_edges(edges: Dict[str, Set[str]], gateway: str, node: str) -> None:
+    """
+        Idea:
+            Достраивание коридоров после проверки на закрытие шлюза
+    :param edges: Словарь смежности вершин
+    :param gateway: Шлюз
+    :param node: Нода узла
+    :return: None
+    """
     edges[gateway].add(node)
     edges[node].add(gateway)
 
