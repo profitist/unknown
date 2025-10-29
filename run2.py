@@ -1,61 +1,95 @@
 import sys
 from collections import deque
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Set
 
 
-def bfs(edges: Dict[str, list], start: str) \
-        -> Optional[Tuple[str, ...]]:
+def find_shortest_path(edges: Dict[str, Set[str]], start: str) -> int | float:
     """
         Idea:
-            Пробегаемся бфсом в поиске шлюза.
-            Если нашли шлюз, не возвращаем, а складываем в массив ответов.
-            Затем среди них выберем лексикографически меньший. Его и вернем.
+            Поиск минимальной длины пути до шлюза
     :param edges: Словарь смежности вершин
-    :param start: стартовая точка
-    :return: кортеж из 3х элементов:
-     (Шлюз, Откуда в этот шлюз попали, первый шаг)
+    :param start: Стартовая точка
+    :return: depth длина пути
     """
-    if start not in edges or not edges[start]:
-        return None
-
-    q = deque()
+    q = deque([(start, 0)])
     visited = {start}
-    # сразу добавляем соседей стартовой вершины
-    for node in sorted(edges[start]):
-        q.append((start, node, 1, node))
-        visited.add(node)
-
-    founded = []
-    min_depth = None
-    founded_gateways = set()
-
     while q:
-        from_node, current_node, depth, first_step = q.popleft()
-        # Если уже нашли шлюз на меньшей глубине — дальше нет смысла
-        if min_depth is not None and depth > min_depth:
+        node, depth = q.popleft()
+        if node.isupper():
+            return depth
+        for neighbor in edges[node]:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                q.append((neighbor, depth + 1))
+    return float('inf')
+
+
+def find_virus_next_step(edges: Dict[str, Set[str]], start: str):
+    """
+        Idea:
+            Поиск следующего хода вируса.
+            бфс до ближайшего меньшего по лексике шлюза с наименьшим путем
+    :param edges: Словарь смежности вершин
+    :param start: Стартовая точка
+    :return: result_first_step - Первый шаг бфс для найденного шлюза
+    """
+    q = deque([(node, node, 1) for node in edges[start]])
+    visited = {start}
+    min_depth = float('inf')
+    founded_gate = ''
+    result_first_step = ''
+    while q:
+        first_step, current_node, depth = q.popleft()
+
+        if depth > min_depth:
             break
+
         if current_node.isupper():
-            # Проверки нового шлюза на закрытие
-            if min_depth is None:
+            if depth < min_depth:
                 min_depth = depth
-            if depth == min_depth and current_node not in founded_gateways:
-                founded.append((current_node, from_node, first_step))
-                founded_gateways.add(current_node)
-            continue
-        for neighbour in sorted(edges.get(current_node, [])):
-            if neighbour not in visited:
-                visited.add(neighbour)
-                q.append((current_node, neighbour, depth + 1, first_step))
+                result_first_step = first_step
+                founded_gate = current_node
+            elif min_depth == depth:
+                if current_node < founded_gate:
+                    result_first_step = first_step
+                elif current_node == founded_gate:
+                    result_first_step = min(result_first_step, first_step)
 
-    if not founded:
+        for neigh in sorted(edges[current_node]):
+            if neigh not in visited:
+                visited.add(neigh)
+                q.append((first_step, neigh, depth + 1))
+    return result_first_step
+
+
+def find_edge_to_break(edges: Dict[str, Set[str]], start: str) \
+        -> Tuple[str, str]:
+    """
+        Idea:
+            Поиск лексикографически меньшего шлюза для разрыва,
+            чтобы у нас оставалась возможность закрыть вирус внутри
+    :param edges: Словарь смежности вершин
+    :param start: Стартовая точка
+    :return: Пара (шлюз, нода откуда пришли в шлюз)
+    """
+    gateways = [n for n in edges if n.isupper()]
+    current_distance = find_shortest_path(edges, start)
+    candidates = []
+
+    for g in sorted(gateways):
+        for neighbor in sorted(edges[g]):
+            break_halls(edges, g, neighbor)
+            new_distance = find_shortest_path(edges, start)
+            if new_distance >= current_distance:
+                candidates.append((g, neighbor))
+            rebuild_edges(edges, g, neighbor)
+    if not candidates:
         return None
-
-    # сортируем по шлюзу и по узлу (лексикографически)
-    founded.sort(key=lambda x: (x[0], x[1]))
-    return founded[0]
+    candidates.sort()
+    return candidates[0]
 
 
-def solve(edges: Dict[str, List[str]]) -> List[str]:
+def solve(edges: Dict[str, Set[str]]) -> List[str]:
     """
         Idea:
             Симуляция движения вируса и удаления шлюзов.
@@ -65,18 +99,25 @@ def solve(edges: Dict[str, List[str]]) -> List[str]:
     """
     result = []
     current_pos = 'a'
+
     while True:
-        founded = bfs(edges, current_pos)
-        if not founded:
+        candidate = find_edge_to_break(edges, current_pos)
+        if not candidate:
             break
-        gateway, from_node, first_step = founded
-        result.append(f'{gateway}-{from_node}')
-        break_halls(edges, gateway, from_node)
-        current_pos = first_step
+
+        gateway, node = candidate
+        result.append(f"{gateway}-{node}")
+        break_halls(edges, gateway, node)
+
+        next_pos = find_virus_next_step(edges, current_pos)
+        if not next_pos:
+            break
+        current_pos = next_pos
+
     return result
 
 
-def break_halls(edges: Dict[str, List[str]], gateway: str, node: str) -> None:
+def break_halls(edges: Dict[str, Set[str]], gateway: str, node: str) -> None:
     """
         Idea:
             Очистка коридоров после закрытия шлюза
@@ -91,6 +132,11 @@ def break_halls(edges: Dict[str, List[str]], gateway: str, node: str) -> None:
         edges[node].remove(gateway)
 
 
+def rebuild_edges(edges: Dict[str, Set[str]], gateway: str, node: str) -> None:
+    edges[gateway].add(node)
+    edges[node].add(gateway)
+
+
 def main():
     edges = {}
     for line in sys.stdin:
@@ -98,8 +144,8 @@ def main():
         if line:
             node1, sep, node2 = line.partition('-')
             if sep:
-                edges.setdefault(node1, []).append(node2)
-                edges.setdefault(node2, []).append(node1)
+                edges.setdefault(node1, set()).add(node2)
+                edges.setdefault(node2, set()).add(node1)
 
     result = solve(edges)
     for edge in result:
