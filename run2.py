@@ -1,6 +1,6 @@
 import sys
 from collections import deque
-from typing import List, Dict, Tuple, Optional, Set
+from typing import List, Dict, Tuple, Set
 
 
 def find_shortest_path(edges: Dict[str, Set[str]], start: str) -> int | float:
