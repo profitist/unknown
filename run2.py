@@ -1,6 +1,6 @@
 import sys
 from collections import deque
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Optional
 
 
 def is_virus_closed(edges: Dict[str, set], start: str) -> bool:
@@ -24,32 +24,34 @@ def is_virus_closed(edges: Dict[str, set], start: str) -> bool:
     return True
 
 
-def can_isolate(edges: Dict[str, set], virus_pos: str, ans: List[str]) -> bool:
+def can_isolate(edges: Dict[str, set], virus_pos: str) -> Optional[List[str]]:
     """
         Idea:
             Проверка на то, что мы можем закрыть шлюз и затем найти
             решение для полученного графа
     :param edges:
     :param virus_pos:
-    :param ans: Собираемый ответ на задачу
     :return: True если мы можем закрыть шлюз и затем найти решение
     для полученного графа
     """
     if is_virus_closed(edges, virus_pos):
-        return True
+        return []
     if virus_pos.isupper():
-        return False
+        return None
+
     gateways = sorted([node for node in edges if node.isupper()])
     for gateway in gateways:
         for neigh in sorted(edges[gateway]):
             break_halls(edges, gateway, neigh)
             next_pos = find_virus_next_step(edges, virus_pos)
-            if not next_pos or can_isolate(edges, next_pos, ans):
-                ans.append(f'{gateway}-{neigh}')
+            if not next_pos:
                 rebuild_edges(edges, gateway, neigh)
-                return True
+                return [f'{gateway}-{neigh}']
+            deeper_solution = can_isolate(edges, next_pos)
             rebuild_edges(edges, gateway, neigh)
-    return False
+            if deeper_solution is not None:
+                return [f'{gateway}-{neigh}'] + deeper_solution
+    return None
 
 
 def find_virus_next_step(edges: Dict[str, Set[str]], start: str):
@@ -61,33 +63,27 @@ def find_virus_next_step(edges: Dict[str, Set[str]], start: str):
     :param start: Стартовая точка
     :return: result_first_step - Первый шаг бфс для найденного шлюза
     """
-    q = deque([(node, node, 1) for node in edges[start]])
+    q = deque([(node, node, 1) for node in sorted(edges[start])])
     visited = {start}
-    min_depth = float('inf')
-    founded_gate = ''
-    result_first_step = ''
+    candidates = []
+
     while q:
         first_step, current_node, depth = q.popleft()
-
-        if depth > min_depth:
-            break
-
         if current_node.isupper():
-            if depth < min_depth:
-                min_depth = depth
-                result_first_step = first_step
-                founded_gate = current_node
-            elif min_depth == depth:
-                if current_node < founded_gate:
-                    result_first_step = first_step
-                elif current_node == founded_gate:
-                    result_first_step = min(result_first_step, first_step)
-
+            candidates.append((current_node, first_step, depth))
+            continue
         for neigh in sorted(edges[current_node]):
             if neigh not in visited:
                 visited.add(neigh)
                 q.append((first_step, neigh, depth + 1))
-    return result_first_step
+
+    if not candidates:
+        return None
+    min_depth = min(candidates, key=lambda x: x[2])[2]
+    best_candidates = [c for c in candidates if c[2] == min_depth]
+    best_candidates.sort(
+        key=lambda x: (x[0], x[1]))
+    return best_candidates[0][1]
 
 
 def solve(edges: Dict[str, Set[str]]) -> List[str]:
@@ -99,8 +95,7 @@ def solve(edges: Dict[str, Set[str]]) -> List[str]:
     """
     result = []
     current_pos = 'a'
-    can_isolate(edges, current_pos, result)
-    return result[::-1]
+    return can_isolate(edges, 'a')
 
 
 def break_halls(edges: Dict[str, Set[str]], gateway: str, node: str) -> None:
