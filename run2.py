@@ -93,8 +93,6 @@ def solve(edges: Dict[str, Set[str]]) -> List[str]:
     :param edges: Словарь смежности вершин
     :return: Последовательность закрывания шлюзов - ответ на задачу
     """
-    result = []
-    current_pos = 'a'
     return can_isolate(edges, 'a')
 
 
