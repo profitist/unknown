@@ -6,7 +6,7 @@ from typing import List, Dict, Set, Optional
 def is_virus_closed(edges: Dict[str, set], start: str) -> bool:
     """
         Idea:
-            Проверка на то, что вирус не может дойти до шлюза
+        Проверка на то, что вирус не может дойти до шлюза
     :param edges: Словарь смежности вершин
     :param start: Стартовая точка
     :return: bool да если не изолирован / нет иначе
@@ -24,11 +24,11 @@ def is_virus_closed(edges: Dict[str, set], start: str) -> bool:
     return True
 
 
-def can_isolate(edges: Dict[str, set], virus_pos: str) -> Optional[List[str]]:
+def do_isolation(edges: Dict[str, set], virus_pos: str) -> Optional[List[str]]:
     """
         Idea:
-            Проверка на то, что мы можем закрыть шлюз и затем найти
-            решение для полученного графа
+        Проверка на то, что мы можем закрыть шлюз и затем найти
+        решение для полученного графа
     :param edges:
     :param virus_pos:
     :return: True если мы можем закрыть шлюз и затем найти решение
@@ -42,23 +42,24 @@ def can_isolate(edges: Dict[str, set], virus_pos: str) -> Optional[List[str]]:
     gateways = sorted([node for node in edges if node.isupper()])
     for gateway in gateways:
         for neigh in sorted(edges[gateway]):
-            break_halls(edges, gateway, neigh)
+            break_edges(edges, gateway, neigh)
             next_pos = find_virus_next_step(edges, virus_pos)
             if not next_pos:
                 rebuild_edges(edges, gateway, neigh)
                 return [f'{gateway}-{neigh}']
-            deeper_solution = can_isolate(edges, next_pos)
+            deeper_solution = do_isolation(edges, next_pos)
             rebuild_edges(edges, gateway, neigh)
             if deeper_solution is not None:
                 return [f'{gateway}-{neigh}'] + deeper_solution
     return None
 
 
-def find_virus_next_step(edges: Dict[str, Set[str]], start: str):
+def find_virus_next_step(edges: Dict[str, Set[str]], start: str) \
+        -> Optional[str]:
     """
         Idea:
-            Поиск следующего хода вируса.
-            бфс до ближайшего меньшего по лексике шлюза с наименьшим путем
+        Поиск следующего хода вируса.
+        бфс до ближайшего меньшего по лексике шлюза с наименьшим путем
     :param edges: Словарь смежности вершин
     :param start: Стартовая точка
     :return: result_first_step - Первый шаг бфс для найденного шлюза
@@ -89,17 +90,17 @@ def find_virus_next_step(edges: Dict[str, Set[str]], start: str):
 def solve(edges: Dict[str, Set[str]]) -> List[str]:
     """
         Idea:
-            Рекурсивный спуск с перебором вариантов закрытия шлюзов
+        Рекурсивный спуск с перебором вариантов закрытия шлюзов
     :param edges: Словарь смежности вершин
     :return: Последовательность закрывания шлюзов - ответ на задачу
     """
-    return can_isolate(edges, 'a')
+    return do_isolation(edges, 'a')
 
 
-def break_halls(edges: Dict[str, Set[str]], gateway: str, node: str) -> None:
+def break_edges(edges: Dict[str, Set[str]], gateway: str, node: str) -> None:
     """
         Idea:
-            Очистка коридоров после закрытия шлюза
+        Очистка коридоров после закрытия шлюза
     :param edges: Словарь смежности вершин
     :param gateway: Шлюз
     :param node: Нода узла
@@ -114,7 +115,7 @@ def break_halls(edges: Dict[str, Set[str]], gateway: str, node: str) -> None:
 def rebuild_edges(edges: Dict[str, Set[str]], gateway: str, node: str) -> None:
     """
         Idea:
-            Достраивание коридоров после проверки на закрытие шлюза
+        Достраивание коридоров после проверки на закрытие шлюза
     :param edges: Словарь смежности вершин
     :param gateway: Шлюз
     :param node: Нода узла
